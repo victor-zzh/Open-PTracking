@@ -1,0 +1,28 @@
+{
+  "name": "open-ptracking",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "db:setup": "bun run supabase/schema.sql",
+    "test:e2e": "bun run tests/frontend.spec.ts",
+    "test:qa": "python scripts/with_server.py --server \"bun run dev\" --port 3000 -- bun run tests/frontend.spec.ts",
+    "audit:a11y": "npx lighthouse http://localhost:3000 --only-categories=accessibility --output=html --output-path=./lighthouse-a11y.html"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.13",
+    "playwright": "^1.59.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.0",
+    "@supabase/supabase-js": "^2.105.3",
+    "hono": "^4.12.18",
+    "openai": "^6.36.0",
+    "turndown": "^7.2.4"
+  }
+}

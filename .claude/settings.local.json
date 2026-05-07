@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:zread.ai)",
+      "mcp__web-search-prime__web_search_prime",
+      "WebSearch",
+      "Bash(bun *)",
+      "Bash(kill %1)",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"https://cursor.sh\"}')",
+      "Bash(wait)",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"not-a-url\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"https://this-domain-definitely-does-not-exist-12345.com\"}')",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"https://example.com\"}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Cached:', d.get\\('cached'\\), '| Product:', d['product']['name']\\)\")",
+      "WebFetch(domain:github.com)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"Status: %{http_code}, Size: %{size_download} bytes\" http://localhost:3000/)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s https://api.github.com/repos/warpdotdev/oz-skills/contents/skills)",
+      "Bash(python3 -c \"import sys,json; [print\\(x['name']\\) for x in json.load\\(sys.stdin\\)]\")",
+      "Bash(python3 -c \"import playwright; print\\('Python Playwright available'\\)\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 -m playwright install chromium)",
+      "Bash(python3 *)",
+      "Bash(npx playwright *)",
+      "WebFetch(domain:api-docs.deepseek.com)"
+    ]
+  }
+}
