@@ -80,9 +80,9 @@ export function extractContent(html: string, url: string): ExtractedContent {
 
   const language = detectLanguage(textContent);
 
-  // Truncate to ~30k chars for LLM (roughly 8-10k tokens)
-  const { text: truncatedMd } = truncateText(markdown, 30000);
-  const { text: truncatedText } = truncateText(textContent, 30000);
+  // Truncate to 15k chars for LLM (roughly 4-6k tokens) — faster with sufficient context
+  const { text: truncatedMd } = truncateText(markdown, 15000);
+  const { text: truncatedText } = truncateText(textContent, 15000);
 
   return {
     title: title || ogTitle || h1Text,

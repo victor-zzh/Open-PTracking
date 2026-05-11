@@ -142,15 +142,69 @@ export const FEW_SHOT_EXAMPLE_CN = `
 `;
 
 export function buildExtractionPrompt(
-  content: string,
+  enriched: {
+    productNameCandidates: string[];
+    taglineCandidates: string[];
+    metaDescription: string;
+    headings: { level: number; text: string }[];
+    sectionTitles: string[];
+    pricingCandidates: Array<{ text: string; amount?: number; period?: string; tier?: string }>;
+    featureCandidates: string[];
+    categoryHints: string[];
+    targetUserHints: string[];
+    competitorMentions: string[];
+    positivePhrases: string[];
+    negativePhrases: string[];
+    bodySummary: string;
+  },
   language: string
 ): { system: string; messages: Array<{ role: 'user' | 'assistant'; content: string }> } {
   const isChinese = language === 'zh';
   const fewShot = isChinese ? FEW_SHOT_EXAMPLE_CN : FEW_SHOT_EXAMPLE_EN;
 
+  // Build a structured input for the LLM (much shorter than raw markdown)
+  const structuredInput = [
+    '## Product Name Candidates',
+    enriched.productNameCandidates.length > 0
+      ? enriched.productNameCandidates.join(' | ')
+      : '(extract from body text below)',
+    '',
+    '## Tagline Candidates',
+    enriched.taglineCandidates.filter(Boolean).slice(0, 3).join(' | ') || '(not found)',
+    '',
+    '## Page Structure',
+    ...enriched.headings.slice(0, 15).map(h => `${'#'.repeat(h.level)} ${h.text}`),
+    '',
+    '## Pricing Signals',
+    enriched.pricingCandidates.length > 0
+      ? enriched.pricingCandidates.map(p => p.text).join(' | ')
+      : '(not detected)',
+    '',
+    '## Feature Candidates',
+    enriched.featureCandidates.slice(0, 15).map((f, i) => `${i + 1}. ${f}`).join('\n') || '(none detected)',
+    '',
+    '## Category Hints',
+    enriched.categoryHints.join(', ') || '(not detected)',
+    '',
+    '## Target User Hints',
+    enriched.targetUserHints.join(', ') || '(not detected)',
+    '',
+    '## Competitor Mentions',
+    enriched.competitorMentions.join(', ') || '(none detected)',
+    '',
+    '## Positive Signals',
+    enriched.positivePhrases.slice(0, 5).join(' | ') || '(none)',
+    '',
+    '## Negative Signals',
+    enriched.negativePhrases.slice(0, 5).join(' | ') || '(none)',
+    '',
+    '## Page Body (Summary)',
+    enriched.bodySummary,
+  ].join('\n');
+
   const userPrompt = isChinese
-    ? `请从以下网页内容中提取AI产品的结构化信息。\n\n---\n${content}\n---\n\n返回纯JSON，不要有其他文字。`
-    : `Extract structured information about the AI product from the following page content.\n\n---\n${content}\n---\n\nReturn pure JSON only. No other text.`;
+    ? `请从以下预提取的网页数据中，生成AI产品的结构化JSON分析。\n\n---\n${structuredInput}\n---\n\n返回纯JSON，不要有其他文字。`
+    : `Generate a structured JSON analysis of the AI product from the following pre-extracted page data.\n\n---\n${structuredInput}\n---\n\nReturn pure JSON only. No other text.`;
 
   return {
     system: SYSTEM_PROMPT,

@@ -1,5 +1,6 @@
 import { chat, detectLLMConfig } from './llm';
 import { buildExtractionPrompt } from '../prompts/extraction';
+import type { EnrichedData } from './enricher';
 import type { SnapshotAnalysis, SnapshotProduct, Sentiment, PricingTier, CompetitorRef } from '../lib/types';
 
 interface LLMOutput {
@@ -147,7 +148,7 @@ function fallbackExtraction(
 }
 
 export async function synthesize(
-  content: string,
+  enriched: EnrichedData,
   language: string,
   title: string,
   metaDescription: string,
@@ -169,9 +170,9 @@ export async function synthesize(
     };
   }
 
-  const { system, messages } = buildExtractionPrompt(content, language);
+  const { system, messages } = buildExtractionPrompt(enriched, language);
 
-  const maxRetries = 2;
+  const maxRetries = 1;
   let lastError: string | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

@@ -27,7 +27,15 @@
       "Bash(python3 -m playwright install chromium)",
       "Bash(python3 *)",
       "Bash(npx playwright *)",
-      "WebFetch(domain:api-docs.deepseek.com)"
+      "WebFetch(domain:api-docs.deepseek.com)",
+      "mcp__zai-mcp-server__ui_to_artifact",
+      "mcp__zai-mcp-server__analyze_image",
+      "Bash(sips -g all /tmp/zread-screenshot.png)",
+      "Bash(npx tsc *)",
+      "Bash(curl -s http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"https://cursor.sh\"}' --max-time 120)",
+      "Bash(curl -s http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"https://www.codeant.ai\"}' --max-time 120)",
+      "Bash(curl -s http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"https://windsurf.com\"}' --max-time 120)",
+      "Bash(curl -s http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"url\": \"https://claude.ai\"}' --max-time 120)"
     ]
   }
 }

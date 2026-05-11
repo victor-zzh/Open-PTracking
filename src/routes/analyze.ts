@@ -3,9 +3,12 @@ import { validateUrl, normalizeUrl, followRedirects } from '../lib/url';
 import { detectPlatform } from '../lib/platform';
 import { crawlUrl } from '../services/crawler';
 import { extractContent } from '../services/extractor';
+import { enrichContent } from '../services/enricher';
 import { synthesize } from '../services/synthesizer';
-import { formatJson, formatMarkdown } from '../services/formatter';
+import { collectFeedback } from '../services/collector';
+import { formatJson, formatMarkdown, formatFeedbackMarkdown } from '../services/formatter';
 import { checkCache, storeResult } from '../lib/cache';
+import { saveFeedbackItems, getCachedFeedback } from '../lib/supabase';
 
 export const analyzeRouter = new Hono();
 
@@ -108,21 +111,34 @@ analyzeRouter.post('/analyze', async (c) => {
   // Extract content
   const extracted = extractContent(fetchResult.html, finalUrl);
 
-  // Truncate large pages
-  const maxTokens = 30000;
-  const contentToAnalyze = extracted.markdown.length > maxTokens
-    ? extracted.markdown.slice(0, maxTokens) + '\n\n[Content truncated — page exceeded analysis limit]'
-    : extracted.markdown;
+  // Enrich: concurrent structured extraction (pricing, features, competitors, etc.)
+  const enriched = enrichContent(fetchResult.html, extracted);
 
-  // LLM Synthesis
-  const synResult = await synthesize(
-    contentToAnalyze,
-    extracted.language,
-    extracted.title,
-    extracted.metaDescription,
-    extracted.h1Text,
-    finalUrl
-  );
+  // Determine product name for feedback search
+  const productName =
+    enriched.productNameCandidates[0] ||
+    extracted.h1Text ||
+    extracted.title ||
+    'Unknown Product';
+
+  // Phase: Run LLM synthesis AND feedback collection concurrently
+  const [synResult, feedbackReport] = await Promise.all([
+    synthesize(
+      enriched,
+      extracted.language,
+      extracted.title,
+      extracted.metaDescription,
+      extracted.h1Text,
+      finalUrl
+    ),
+    (async () => {
+      // Check feedback cache first
+      const cached = await getCachedFeedback(productName);
+      if (cached && cached.items.length > 0) return { ...cached, cached: true };
+      const report = await collectFeedback(productName);
+      return { ...report, cached: false };
+    })(),
+  ]);
 
   const processingTime = Date.now() - startTime;
 
@@ -140,12 +156,24 @@ analyzeRouter.post('/analyze', async (c) => {
 
   const markdown = formatMarkdown(snapshot);
 
-  // Store result
-  await storeResult(snapshot, url, platformLabel, processingTime);
+  // Generate feedback markdown section
+  const feedbackMarkdown = formatFeedbackMarkdown(feedbackReport, productName);
+
+  // Store results
+  const storePromise = storeResult(snapshot, url, platformLabel, processingTime);
+  const feedbackSavePromise = feedbackReport.cached
+    ? Promise.resolve(0)
+    : saveFeedbackItems(feedbackReport.items, productName, null);
+
+  await Promise.all([storePromise, feedbackSavePromise]);
 
   return c.json({
     ...snapshot,
-    markdown,
+    markdown: markdown + '\n\n' + feedbackMarkdown,
+    feedback: {
+      ...feedbackReport,
+      markdown: feedbackMarkdown,
+    },
     cached: false,
     warning: synResult.warning,
   });

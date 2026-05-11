@@ -81,6 +81,110 @@ export async function saveSnapshot(
   return data?.id || null;
 }
 
+import type { FeedbackItem, FeedbackReport } from '../services/collector';
+
+export async function saveFeedbackItems(
+  items: FeedbackItem[],
+  productName: string,
+  snapshotId?: string | null
+): Promise<number> {
+  const sb = getSupabase();
+  if (!sb || items.length === 0) return 0;
+
+  const rows = items.map(item => ({
+    snapshot_id: snapshotId || null,
+    product_name: productName,
+    channel: item.channel,
+    title: item.title,
+    content: item.content.slice(0, 2000),
+    author: item.author,
+    url: item.url,
+    date: item.date,
+    upvotes: item.upvotes,
+    sentiment: item.sentiment,
+    sentiment_score: item.sentimentScore,
+    themes: item.themes,
+  }));
+
+  const { error } = await sb.from('feedback_items').insert(rows);
+  if (error) {
+    console.error('Failed to save feedback items:', error.message);
+    return 0;
+  }
+  return rows.length;
+}
+
+export async function getCachedFeedback(productName: string): Promise<FeedbackReport | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+
+  const { data, error } = await sb
+    .from('feedback_items')
+    .select('*')
+    .eq('product_name', productName)
+    .order('upvotes', { ascending: false });
+
+  if (error || !data || data.length === 0) return null;
+
+  const items: FeedbackItem[] = data.map(row => ({
+    id: row.id,
+    channel: row.channel as FeedbackItem['channel'],
+    title: row.title || '',
+    content: row.content || '',
+    author: row.author || '',
+    url: row.url || '',
+    date: row.date || '',
+    upvotes: row.upvotes || 0,
+    sentiment: row.sentiment as FeedbackItem['sentiment'] || 'neutral',
+    sentimentScore: row.sentiment_score || 0.5,
+    themes: row.themes || [],
+  }));
+
+  const positiveCount = items.filter(i => i.sentiment === 'positive').length;
+  const negativeCount = items.filter(i => i.sentiment === 'negative').length;
+  const neutralCount = items.filter(i => i.sentiment === 'neutral').length;
+  const aggregatedSentiment = items.length > 0
+    ? items.reduce((sum, i) => sum + i.sentimentScore, 0) / items.length
+    : 0.5;
+
+  const themeMap = new Map<string, { count: number; sentiments: string[] }>();
+  for (const item of items) {
+    for (const theme of item.themes) {
+      if (!themeMap.has(theme)) themeMap.set(theme, { count: 0, sentiments: [] });
+      const t = themeMap.get(theme)!;
+      t.count++;
+      t.sentiments.push(item.sentiment);
+    }
+  }
+  const topThemes = [...themeMap.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 10)
+    .map(([theme, data]) => ({
+      theme,
+      count: data.count,
+      sentiment: data.sentiments.filter(s => s === 'positive').length > data.sentiments.length / 2
+        ? 'positive' : data.sentiments.filter(s => s === 'negative').length > data.sentiments.length / 2
+          ? 'negative' : 'neutral' as 'positive' | 'negative' | 'neutral',
+    }));
+
+  const channelMap = new Map<string, number>();
+  for (const item of items) {
+    channelMap.set(item.channel, (channelMap.get(item.channel) || 0) + 1);
+  }
+  const channels = [...channelMap.entries()].map(([channel, count]) => ({ channel, count }));
+
+  return {
+    items,
+    totalFound: items.length,
+    positiveCount,
+    negativeCount,
+    neutralCount,
+    topThemes,
+    channels,
+    aggregatedSentiment,
+  };
+}
+
 export async function getCachedSnapshot(normalizedUrl: string): Promise<SnapshotRecord | null> {
   const sb = getSupabase();
   if (!sb) return null;

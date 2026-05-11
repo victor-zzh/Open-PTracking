@@ -1,4 +1,5 @@
 import type { Snapshot, SnapshotProduct, SnapshotAnalysis } from '../lib/types';
+import type { FeedbackReport } from './collector';
 
 export function formatJson(
   product: SnapshotProduct,
@@ -103,6 +104,78 @@ export function formatMarkdown(snapshot: Snapshot): string {
   lines.push(
     `*Analyzed from ${source.platform} · ${meta.sourcesAnalyzed} source(s) · ${(meta.processingTime / 1000).toFixed(1)}s · Confidence: ${Math.round(meta.confidence * 100)}%*`
   );
+
+  return lines.join('\n');
+}
+
+export function formatFeedbackMarkdown(report: FeedbackReport, productName: string): string {
+  if (report.totalFound === 0) {
+    return [
+      '',
+      '---',
+      '',
+      '## User Feedback',
+      '',
+      '_No user feedback found across channels._',
+      '',
+    ].join('\n');
+  }
+
+  const lines: string[] = [
+    '',
+    '---',
+    '',
+    '## User Feedback',
+    '',
+    `**${report.totalFound}** real user mentions found across **${report.channels.length}** channels.`,
+    '',
+  ];
+
+  // Sentiment summary
+  const aggPct = Math.round(report.aggregatedSentiment * 100);
+  const sentimentEmoji = aggPct >= 65 ? '🟢' : aggPct >= 40 ? '🟡' : '🔴';
+  lines.push(`**Overall Sentiment:** ${sentimentEmoji} ${aggPct}% positive (${report.positiveCount}+ / ${report.negativeCount}- / ${report.neutralCount}~)`);
+  lines.push('');
+
+  // Channel breakdown
+  lines.push('### Channels');
+  lines.push('| Channel | Mentions |');
+  lines.push('|---------|----------|');
+  for (const ch of report.channels) {
+    lines.push(`| ${ch.channel} | ${ch.count} |`);
+  }
+  lines.push('');
+
+  // Top themes
+  if (report.topThemes.length > 0) {
+    lines.push('### Top Themes');
+    lines.push('| Theme | Mentions | Sentiment |');
+    lines.push('|-------|----------|-----------|');
+    for (const t of report.topThemes) {
+      const sEmoji = t.sentiment === 'positive' ? '👍' : t.sentiment === 'negative' ? '👎' : '➖';
+      lines.push(`| ${t.theme} | ${t.count} | ${sEmoji} ${t.sentiment} |`);
+    }
+    lines.push('');
+  }
+
+  // Individual feedback items (sorted by upvotes)
+  lines.push('### Top Feedback');
+  lines.push('');
+  const topItems = report.items.slice(0, 15);
+  for (const item of topItems) {
+    const sLabel = item.sentiment === 'positive' ? '🟢' : item.sentiment === 'negative' ? '🔴' : '⚪';
+    const channelLabel = item.channel.toUpperCase();
+    const scoreLabel = Math.round(item.sentimentScore * 100);
+    lines.push(`- ${sLabel} **[${channelLabel}]** ${item.title.slice(0, 120)} — _${item.author}_ (${item.upvotes}↑ · ${scoreLabel}%)`);
+    if (item.content) {
+      const snippet = item.content.slice(0, 300).replace(/\n/g, ' ');
+      lines.push(`  > ${snippet}${item.content.length > 300 ? '...' : ''}`);
+    }
+    if (item.themes.length > 0) {
+      lines.push(`  Themes: ${item.themes.join(', ')}`);
+    }
+    lines.push('');
+  }
 
   return lines.join('\n');
 }

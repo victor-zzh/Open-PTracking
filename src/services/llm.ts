@@ -52,17 +52,18 @@ async function callDeepSeek(
     apiKey: process.env.DEEPSEEK_API_KEY,
   });
 
-  // DeepSeek uses OpenAI-compatible format — all messages in one array
   const response = await client.chat.completions.create({
     model,
     messages: messages.map(m => ({
       role: m.role,
       content: m.content,
     })),
-    max_tokens: 2048,
-    temperature: 0.1,
+    max_tokens: 4096,
+    temperature: 0,
     stream: false,
-  });
+    // Disable thinking for structured extraction — speed over reasoning
+    reasoning_effort: 'low',
+  } as Record<string, unknown> as OpenAI.ChatCompletionCreateParamsNonStreaming);
 
   return response.choices[0]?.message?.content || '';
 }
